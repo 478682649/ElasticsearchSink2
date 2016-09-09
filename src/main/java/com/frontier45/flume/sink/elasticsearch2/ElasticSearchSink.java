@@ -203,6 +203,7 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 				txn.commit();
 				sinkCounter.addToEventDrainSuccessCount(batchSize);
 				counterGroup.incrementAndGet("transaction.success");
+				logger.error(ex.toString());
 			} catch (Exception ex2) {
 				logger.error("Exception in rollback. Rollback might not have been successful.", ex2);
 			}
