@@ -38,6 +38,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
+import java.lang.reflect.Array;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -73,6 +74,10 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 	private static final Logger logger = LoggerFactory.getLogger(ElasticSearchSink.class);
 	public static final String FAILED_TO_COMMIT_TRANSACTION_TRANSACTION_ROLLED_BACK = "Failed to commit transaction. Transaction rolled back.";
 	public static final String MISSING_PARAM = "Missing Param:";
+	private String keystorePath ;
+	private String keystorePass ;
+	private String truststorePath;
+	private String truststorePass;
 
 	// Used for testing
 	private boolean isLocal = false;
@@ -197,9 +202,6 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 			counterGroup.incrementAndGet("transaction.success");
 		} catch (Throwable ex) {
 			try {
-				// 功能需要不需要rollback
-				//txn.rollback();
-				//counterGroup.incrementAndGet("transaction.rollback");
 				txn.commit();
 				sinkCounter.addToEventDrainSuccessCount(batchSize);
 				counterGroup.incrementAndGet("transaction.success");
@@ -207,13 +209,6 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 			} catch (Exception ex2) {
 				logger.error("Exception in rollback. Rollback might not have been successful.", ex2);
 			}
-//			if (ex instanceof Error || ex instanceof RuntimeException) {
-//				logger.error(FAILED_TO_COMMIT_TRANSACTION_TRANSACTION_ROLLED_BACK, ex);
-//				Throwables.propagate(ex);
-//			} else {
-//				logger.error(FAILED_TO_COMMIT_TRANSACTION_TRANSACTION_ROLLED_BACK, ex);
-//				throw new EventDeliveryException(FAILED_TO_COMMIT_TRANSACTION_TRANSACTION_ROLLED_BACK, ex);
-//			}
 		} finally {
 			txn.close();
 		}
@@ -234,6 +229,11 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 		if (StringUtils.isNotBlank(context.getString(ElasticSearchSinkConstants.INDEX_NAME))) {
 			this.indexName = context.getString(ElasticSearchSinkConstants.INDEX_NAME);
 		}
+		
+		keystorePath = context.getString("keystorePath","/home/soft/elasticsearch/plugins/search-guard-2/sgconfig/admin-keystore.jks");
+		keystorePass = context.getString("keystorePass","changeit");
+		truststorePath = context.getString("truststorePath","/home/soft/elasticsearch/plugins/search-guard-2/sgconfig/truststore.jks");
+		truststorePass = context.getString("truststorePass","changeit");
 
 		if (StringUtils.isNotBlank(context.getString(ElasticSearchSinkConstants.INDEX_TYPE))) {
 			this.indexType = context.getString(ElasticSearchSinkConstants.INDEX_TYPE);
@@ -329,16 +329,18 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 
 		logger.info("ElasticSearch sink {} started");
 		sinkCounter.start();
+		String[] searchGuardStrs ={keystorePath,keystorePass,truststorePath,truststorePass};
 		try {
 			if (isLocal) {
 				client = clientFactory.getLocalClient(clientType, eventSerializer, indexRequestFactory);
 			} else {
 				client = clientFactory.getClient(clientType, serverAddresses, clusterName, eventSerializer,
-						indexRequestFactory);
+						indexRequestFactory,searchGuardStrs);
 				client.configure(elasticSearchClientContext);
 			}
 			sinkCounter.incrementConnectionCreatedCount();
 		} catch (Exception ex) {
+			logger.error("clent error");
 			ex.printStackTrace();
 			sinkCounter.incrementConnectionFailedCount();
 			if (client != null) {

@@ -97,6 +97,35 @@ public class ElasticSearchSinkConstants {
    * DEFAULTS USED BY THE SINK
    */
 
+  public static final String SEARCHGUARD_SSL_TRANSPORT_HTTP_ENABLED = "searchguard.ssl.transport.http.enabled";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_HTTP_ENFORCE_CLIENTAUTH = "searchguard.ssl.transport.http.enforce_clientauth";
+  
+  public static final String SEARCHGUARD_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH = "searchguard.ssl.transport.http.keystore_filepath";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_HTTP_KEYSTORE_PASSWORD = "searchguard.ssl.transport.http.keystore_password";
+  
+  public static final String SEARCHGUARD_SSL_TRANSPORT_HTTP_KEYSTORE_TYPE = "searchguard.ssl.transport.http.keystore_type";
+  
+  public static final String SEARCHGUARD_SSL_TRANSPORT_HTTP_TRUSTSTORE_FILEPATH = "searchguard.ssl.transport.http.truststore_filepath";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_HTTP_TRUSTSTORE_PASSWORD = "searchguard.ssl.transport.http.truststore_password";
+  
+  public static final String SEARCHGUARD_SSL_TRANSPORT_HTTP_TRUSTSTORE_TYPE = "searchguard.ssl.transport.http.truststore_type";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_ENABLED = "searchguard.ssl.transport.node.enabled";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_ENCFORCE_HOSTNAME_VERIFICATION = "searchguard.ssl.transport.node.enforce_hostname_verification";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_ENCFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME = "searchguard.ssl.transport.node.resolve_hostname";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_ENFORCE_CLIENTAUTH = "searchguard.ssl.transport.node.enforce_clientauth";
+  
+  //SSL
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH = "searchguard.ssl.transport.node.keystore_filepath";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_KEYSTORE_PASSWORD = "searchguard.ssl.transport.node.keystore_password";
+  
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_KEYSTORE_TYPE = "searchguard.ssl.transport.node.keystore_type";
+  //SSL
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH = "searchguard.ssl.transport.node.truststore_filepath";
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_TRUSTSTORE_PASSWORD = "searchguard.ssl.transport.node.truststore_password";
+  
+  public static final String SEARCHGUARD_SSL_TRANSPORT_NODE_TRUSTSTORE_TYPE = "searchguard.ssl.transport.node.truststore_type";
+  
+  
   public static final int DEFAULT_PORT = 9300;
   public static final int DEFAULT_TTL = -1;
   public static final String DEFAULT_INDEX_NAME = "flume";

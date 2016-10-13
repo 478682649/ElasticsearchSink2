@@ -18,6 +18,7 @@
  */
 package com.frontier45.flume.sink.elasticsearch2.client;
 
+import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.frontier45.flume.sink.elasticsearch2.ElasticSearchEventSerializer;
 import com.frontier45.flume.sink.elasticsearch2.ElasticSearchIndexRequestBuilderFactory;
 import com.frontier45.flume.sink.elasticsearch2.ElasticSearchSinkConstants;
@@ -50,7 +51,7 @@ public class ElasticSearchTransportClient implements ElasticSearchClient {
 	private ElasticSearchEventSerializer serializer;
 	private ElasticSearchIndexRequestBuilderFactory indexRequestBuilderFactory;
 	private BulkRequestBuilder bulkRequestBuilder;
-
+	private String[] searchGuardStrs;
 	private Client client;
 
 	/**
@@ -60,17 +61,19 @@ public class ElasticSearchTransportClient implements ElasticSearchClient {
 	 * @param clusterName
 	 * @param serializer
 	 */
-	public ElasticSearchTransportClient(String[] hostNames, String clusterName,
-			ElasticSearchEventSerializer serializer) {
+	public ElasticSearchTransportClient(String[] hostNames, String clusterName, ElasticSearchEventSerializer serializer,
+			String[] searchGuardStrs) {
 		configureHostnames(hostNames);
 		this.serializer = serializer;
+		this.searchGuardStrs = searchGuardStrs;
 		openClient(clusterName);
 	}
 
 	public ElasticSearchTransportClient(String[] hostNames, String clusterName,
-			ElasticSearchIndexRequestBuilderFactory indexBuilder) {
+			ElasticSearchIndexRequestBuilderFactory indexBuilder, String[] searchGuardStrs) {
 		configureHostnames(hostNames);
 		this.indexRequestBuilderFactory = indexBuilder;
+		this.searchGuardStrs = searchGuardStrs;
 		openClient(clusterName);
 	}
 
@@ -194,7 +197,21 @@ public class ElasticSearchTransportClient implements ElasticSearchClient {
 		logger.info("Using ElasticSearch hostnames: {} ", Arrays.toString(serverAddresses));
 		Settings settings = Settings.settingsBuilder().put("cluster.name", clusterName).build();
 
-		TransportClient transportClient = TransportClient.builder().settings(settings).build();
+		// put pass here
+		settings = Settings.settingsBuilder().put("cluster.name", clusterName)
+				.put(ElasticSearchSinkConstants.SEARCHGUARD_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH, searchGuardStrs[0])
+				.put(ElasticSearchSinkConstants.SEARCHGUARD_SSL_TRANSPORT_NODE_KEYSTORE_PASSWORD, searchGuardStrs[1])
+				.put(ElasticSearchSinkConstants.SEARCHGUARD_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH, searchGuardStrs[2])
+				.put(ElasticSearchSinkConstants.SEARCHGUARD_SSL_TRANSPORT_NODE_TRUSTSTORE_PASSWORD, searchGuardStrs[3])
+				.put(ElasticSearchSinkConstants.SEARCHGUARD_SSL_TRANSPORT_NODE_ENCFORCE_HOSTNAME_VERIFICATION, "false")
+				.put("path.home", "/").build();
+		TransportClient transportClient = null;
+		try {
+			transportClient = TransportClient.builder().addPlugin(SearchGuardSSLPlugin.class).settings(settings)
+					.build();
+		} catch (Exception e) {
+			logger.error(e.toString());
+		}
 		for (InetSocketTransportAddress host : serverAddresses) {
 			transportClient.addTransportAddress(host);
 		}

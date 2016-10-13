@@ -38,11 +38,11 @@ public class ElasticSearchClientFactory {
      */
     public ElasticSearchClient getClient(String clientType, String[] hostNames,
                                          String clusterName, ElasticSearchEventSerializer serializer,
-                                         ElasticSearchIndexRequestBuilderFactory indexBuilder) throws NoSuchClientTypeException {
+                                         ElasticSearchIndexRequestBuilderFactory indexBuilder,String[] searchGuardStrs) throws NoSuchClientTypeException {
         if (clientType.equalsIgnoreCase(TransportClient) && serializer != null) {
-            return new ElasticSearchTransportClient(hostNames, clusterName, serializer);
+            return new ElasticSearchTransportClient(hostNames, clusterName, serializer,searchGuardStrs);
         } else if (clientType.equalsIgnoreCase(TransportClient) && indexBuilder != null) {
-            return new ElasticSearchTransportClient(hostNames, clusterName, indexBuilder);
+            return new ElasticSearchTransportClient(hostNames, clusterName, indexBuilder,searchGuardStrs);
         } else if (clientType.equalsIgnoreCase(RestClient) && serializer != null) {
             return new ElasticSearchRestClient(hostNames, serializer);
         }
