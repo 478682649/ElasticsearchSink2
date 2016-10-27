@@ -1,92 +1,118 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
 package com.frontier45.flume.sink.elasticsearch2;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TimeZone;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.FastDateFormat;
+import org.apache.commons.net.util.SubnetUtils;
+import org.apache.commons.net.util.SubnetUtils.SubnetInfo;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.conf.ComponentConfiguration;
 import org.apache.flume.formatter.output.BucketPath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.TimeZone;
-
-/**
- * Default index name builder. It prepares name of index using configured
- * prefix and current timestamp. Default format of name is prefix-yyyy-MM-dd".
- */
-public class TimeBasedIndexNameBuilder implements
-        IndexNameBuilder {
-
+public class TimeBasedIndexNameBuilder
+  implements IndexNameBuilder
+{
+  private static final Logger logger = LoggerFactory.getLogger(TimeBasedIndexNameBuilder.class);
   public static final String DATE_FORMAT = "dateFormat";
   public static final String TIME_ZONE = "timeZone";
-
   public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
   public static final String DEFAULT_TIME_ZONE = "Etc/UTC";
+  private Map<String, String> groupIdMap = new HashMap();
+  private boolean InclusiveHost = true;
 
-  private FastDateFormat fastDateFormat = FastDateFormat.getInstance("yyyy-MM-dd",
-      TimeZone.getTimeZone("Etc/UTC"));
-
+  private FastDateFormat fastDateFormat = FastDateFormat.getInstance("yyyy-MM-dd", TimeZone.getTimeZone("Etc/UTC"));
   private String indexPrefix;
 
   @VisibleForTesting
-  FastDateFormat getFastDateFormat() {
-    return fastDateFormat;
+  FastDateFormat getFastDateFormat()
+  {
+    return this.fastDateFormat;
   }
 
-  /**
-   * Gets the name of the index to use for an index request
-   * @param event
-   *          Event for which the name of index has to be prepared
-   * @return index name of the form 'indexPrefix-formattedTimestamp'
-   */
-  @Override
-  public String getIndexName(Event event) {
+  public String getIndexName(Event event)
+  {
     TimestampedEvent timestampedEvent = new TimestampedEvent(event);
     long timestamp = timestampedEvent.getTimestamp();
-    String realIndexPrefix = BucketPath.escapeString(indexPrefix, event.getHeaders());
-    return new StringBuilder(realIndexPrefix).append('-')
-      .append(fastDateFormat.format(timestamp)).toString();
-  }
-  
-  @Override
-  public String getIndexPrefix(Event event) {
-    return BucketPath.escapeString(indexPrefix, event.getHeaders());
+    String realIndexPrefix = BucketPath.escapeString(this.indexPrefix, event.getHeaders());
+    String group_id = "";
+    Map headers = event.getHeaders();
+
+    if (!this.groupIdMap.isEmpty()) {
+      if ((headers.containsKey("interface")) || (headers.containsKey("src_ip")) || (headers.containsKey("dest_ip"))) {
+        String src_group = (String)headers.get("interface") + "^" + (String)headers.get("src_ip");
+        String dest_group = (String)headers.get("interface") + "^" + (String)headers.get("dest_ip");
+        if (this.groupIdMap.containsKey(src_group))
+          group_id = (String)this.groupIdMap.get(src_group);
+        else if (this.groupIdMap.containsKey(dest_group))
+          group_id = (String)this.groupIdMap.get(dest_group);
+        else {
+          group_id = "unknown";
+        }
+        group_id = realIndexPrefix + '-' + group_id + '-' + 
+          this.fastDateFormat.format(timestamp);
+      }
+    }
+    else group_id = realIndexPrefix + '-' + "unknown" + '-' + this.fastDateFormat.format(timestamp);
+
+    return group_id;
   }
 
-  @Override
-  public void configure(Context context) {
-    String dateFormatString = context.getString(DATE_FORMAT);
-    String timeZoneString = context.getString(TIME_ZONE);
+  public String getIndexPrefix(Event event)
+  {
+    return BucketPath.escapeString(this.indexPrefix, event.getHeaders());
+  }
+
+  public void configure(Context context)
+  {
+    String dateFormatString = context.getString("dateFormat");
+    String timeZoneString = context.getString("timeZone");
+    String groupIdPath = null;
+
     if (StringUtils.isBlank(dateFormatString)) {
-      dateFormatString = DEFAULT_DATE_FORMAT;
+      dateFormatString = "yyyy-MM-dd";
     }
     if (StringUtils.isBlank(timeZoneString)) {
-      timeZoneString = DEFAULT_TIME_ZONE;
+      timeZoneString = "Etc/UTC";
     }
-    fastDateFormat = FastDateFormat.getInstance(dateFormatString,
-        TimeZone.getTimeZone(timeZoneString));
-    indexPrefix = context.getString(ElasticSearchSinkConstants.INDEX_NAME);
+
+    groupIdPath = context.getString("groupIdPath", "/home/soft/flume/conf/groupId");
+    this.InclusiveHost = context.getBoolean("InclusiveHost", Boolean.valueOf(true)).booleanValue();
+    try
+    {
+      FileReader fileReader = new FileReader(groupIdPath);
+      BufferedReader br = new BufferedReader(fileReader);
+      String ipstr;
+      while ((ipstr = br.readLine()) != null)
+      {
+        SubnetUtils utils = new SubnetUtils(ipstr.split("\\^")[2]);
+        if (this.InclusiveHost)
+          utils.setInclusiveHostCount(true);
+        for (String ipaddr : utils.getInfo().getAllAddresses())
+          this.groupIdMap.put(ipstr.split("\\^")[1] + "^" + ipaddr, ipstr.split("\\^")[3]);
+      }
+      br.close();
+      fileReader.close();
+    } catch (FileNotFoundException e) {
+      return;
+    } catch (IOException e) {
+      return;
+    }
+    String ipstr;
+    this.fastDateFormat = FastDateFormat.getInstance(dateFormatString, TimeZone.getTimeZone(timeZoneString));
+    this.indexPrefix = context.getString("indexName");
   }
 
-  @Override
-  public void configure(ComponentConfiguration conf) {
+  public void configure(ComponentConfiguration conf)
+  {
   }
 }
