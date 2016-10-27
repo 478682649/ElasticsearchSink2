@@ -107,7 +107,6 @@ public class TimeBasedIndexNameBuilder
     } catch (IOException e) {
       return;
     }
-    String ipstr;
     this.fastDateFormat = FastDateFormat.getInstance(dateFormatString, TimeZone.getTimeZone(timeZoneString));
     this.indexPrefix = context.getString("indexName");
   }
